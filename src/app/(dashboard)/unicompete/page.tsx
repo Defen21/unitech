@@ -34,7 +34,7 @@ const competitions: Competition[] = [
   {
     title: "Coding & Algorithms Tournament (CAT) 2026",
     organizer: "Ecommurz & CSRelatedCompetitions",
-    deadline: "Extended — see catournament.org",
+    deadline: "Extended - see catournament.org",
     prize: "IDR 135,000,000",
     tag: "Nasional", tagColor: "bg-red-500/10 text-red-400",
     participants: 87, maxTeam: 1,
@@ -86,9 +86,9 @@ const competitions: Competition[] = [
     },
   },
   {
-    title: "ICPC Algo Queen 2026 — The Girls' Programming Cup",
+    title: "ICPC Algo Queen 2026 - The Girls' Programming Cup",
     organizer: "ICPC Foundation & Amrita Vishwa Vidyapeetham",
-    deadline: "11 Mei — Agustus 2026",
+    deadline: "11 Mei - Agustus 2026",
     prize: "₹3,00,000+ (≈Rp 55 Juta+)",
     tag: "Global", tagColor: "bg-pink-500/10 text-pink-400",
     participants: 120, maxTeam: 1,
@@ -104,7 +104,7 @@ const competitions: Competition[] = [
     },
   },
   {
-    title: "TECHNOTAINMENT '26 — UI/UX Design Competition",
+    title: "TECHNOTAINMENT '26 - UI/UX Design Competition",
     organizer: "Telkom University",
     deadline: "Juni 2026",
     prize: "To be announced",

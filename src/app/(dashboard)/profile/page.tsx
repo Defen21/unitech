@@ -197,7 +197,7 @@ export default function ProfilePage() {
                   <div className="flex items-center gap-6 text-sm">
                     <span className="text-muted-foreground">{s.sks} SKS</span>
                     <span className={`font-semibold ${s.ipk ? 'text-primary' : 'text-muted-foreground'}`}>
-                      {s.ipk ? `IPK ${s.ipk}` : '—'}
+                      {s.ipk ? `IPK ${s.ipk}` : '-'}
                     </span>
                     <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                       s.status === 'Berjalan' ? 'bg-green-500/10 text-green-500' : 'bg-muted text-muted-foreground'
@@ -217,7 +217,7 @@ export default function ProfilePage() {
             <div className="h-4 bg-muted rounded-full overflow-hidden">
               <div className="gradient-bg h-full rounded-full transition-all" style={{ width: '68%' }} />
             </div>
-            <p className="text-sm text-muted-foreground mt-2">68% selesai — estimasi lulus 2026</p>
+            <p className="text-sm text-muted-foreground mt-2">68% selesai - estimasi lulus 2026</p>
           </div>
         </div>
       )}
