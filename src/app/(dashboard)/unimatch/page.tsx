@@ -114,7 +114,7 @@ function drawTile(ctx: CanvasRenderingContext2D, t: number, px: number, py: numb
 function AvatarPreview({ config, size = 128 }: { config: AvatarConfig; size?: number }) {
   const s = size/8;
   return (
-    <div className="relative" style={{ width:size, height:size, imageRendering:"pixelated" }}>
+    <div className="relative pixelated" style={{ width:size, height:size, imageRendering:"pixelated" }}>
       <div className="absolute rounded-full" style={{ left:s, top:s*7.2, width:s*6, height:s*0.8, background:"rgba(0,0,0,0.2)" }}/>
       <div className="absolute" style={{ left:s*2, top:s*5.5, width:s*1.5, height:s*2, background:"#374151" }}/>
       <div className="absolute" style={{ left:s*4.5, top:s*5.5, width:s*1.5, height:s*2, background:"#374151" }}/>
@@ -668,7 +668,7 @@ export default function UniMatchPage() {
       <div className="relative flex justify-center w-full">
         <div className="relative w-full max-w-[1024px]">
           <canvas ref={canvasRef} width={CANVAS_W} height={CANVAS_H}
-            className="pixel-border rounded-sm bg-gray-900 block"
+            className="pixelated pixel-border rounded-sm bg-gray-900 block"
             style={{ imageRendering: "pixelated", width: "100%", height: "auto" }} />
 
           {showIntro && (

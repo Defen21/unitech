@@ -211,3 +211,20 @@ body {
 .pixel-star {
   clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
 }
+
+/* Cross-browser crisp pixel rendering styles */
+.pixelated,
+.pixel-border,
+.pixel-border-light,
+.pixel-btn,
+.pixel-card,
+.pixel-hp-bar,
+.pixel-hp-fill,
+.pixel-mp-fill,
+.pixel-xp-fill,
+.pixel-grid-bg {
+  image-rendering: -moz-crisp-edges;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
