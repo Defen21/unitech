@@ -45,10 +45,10 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
     >
       {/* Logo & Close Button */}
       <div className="flex items-center justify-between px-6 h-16 border-b border-border">
-        <div className="flex items-center gap-2">
+        <Link href="/" className="flex items-center gap-2 hover:opacity-95 transition-opacity">
           <Image src="/logo.jpeg" alt="UniTech" width={32} height={32} className="rounded-lg" />
           <span className="text-lg font-bold gradient-text">UniTech</span>
-        </div>
+        </Link>
         <button
           onClick={onClose}
           className="lg:hidden p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground"
