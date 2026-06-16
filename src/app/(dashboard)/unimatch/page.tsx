@@ -195,19 +195,24 @@ function NpcDialog({ npc, onRecruit, onClose, recruited }: { npc: NPC; onRecruit
 
 // ============ MAIN COMPONENT ============
 export default function UniMatchPage() {
-  const [phase, setPhase] = useState<"custom"|"world">("custom");
-  const [avatar, setAvatar] = useState<AvatarConfig>({ skin:0, hair:0, hairColor:0, outfit:0, accessory:0 });
-  const [talkingNpc, setTalkingNpc] = useState<NPC|null>(null);
+  const [phase, setPhase] = useState<"custom" | "select" | "world" | "swipe">("custom");
+  const [avatar, setAvatar] = useState<AvatarConfig>({ skin: 0, hair: 0, hairColor: 0, outfit: 0, accessory: 0 });
+  const [talkingNpc, setTalkingNpc] = useState<NPC | null>(null);
   const [party, setParty] = useState<number[]>([]);
   const [showIntro, setShowIntro] = useState(false);
   const [, forceUpdate] = useState(0);
+
+  // Swipe mode states
+  const [swipeIndex, setSwipeIndex] = useState(0);
+  const [lastAction, setLastAction] = useState<"like" | "pass" | null>(null);
+  const [matchNpc, setMatchNpc] = useState<NPC | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const keysRef = useRef<Set<string>>(new Set());
 
   // FREE MOVEMENT: float position, no grid snapping
   const posRef = useRef({ x: 11.5, y: 7.5 });
-  const facingRef = useRef<"up"|"down"|"left"|"right">("down");
+  const facingRef = useRef<"up" | "down" | "left" | "right">("down");
   const walkTRef = useRef(0);
   const movingRef = useRef(false);
   const partyRef = useRef<number[]>([]);
@@ -219,18 +224,18 @@ export default function UniMatchPage() {
   useEffect(() => { avatarRef.current = avatar; }, [avatar]);
   useEffect(() => { talkingRef.current = !!talkingNpc; }, [talkingNpc]);
 
-  const enterWorld = () => { setPhase("world"); setShowIntro(true); setTimeout(() => setShowIntro(false), 3000); };
+  const enterSelection = () => { setPhase("select"); };
 
   // Find nearest NPC within range
-  const findNearbyNpc = useCallback((): NPC|null => {
+  const findNearbyNpc = useCallback((): NPC | null => {
     const p = posRef.current;
-    let closest: NPC|null = null, minDist = 1.8;
+    let closest: NPC | null = null, minDist = 1.8;
     const f = facingRef.current;
-    const dirs: Record<string,{x:number;y:number}> = { up:{x:0,y:-1}, down:{x:0,y:1}, left:{x:-1,y:0}, right:{x:1,y:0} };
+    const dirs: Record<string, { x: number; y: number }> = { up: { x: 0, y: -1 }, down: { x: 0, y: 1 }, left: { x: -1, y: 0 }, right: { x: 1, y: 0 } };
     const d = dirs[f];
     for (const npc of NPCS) {
       const dx = npc.x + 0.5 - p.x, dy = npc.y + 0.5 - p.y;
-      const dist = Math.sqrt(dx*dx + dy*dy);
+      const dist = Math.sqrt(dx * dx + dy * dy);
       // Check if NPC is roughly in the facing direction
       const dot = dx * d.x + dy * d.y;
       if (dist < minDist && dot > -0.3) { closest = npc; minDist = dist; }
@@ -269,10 +274,10 @@ export default function UniMatchPage() {
       if (!talkingRef.current) {
         const keys = keysRef.current;
         let dx = 0, dy = 0;
-        if (keys.has("w") || keys.has("arrowup"))    { dy = -1; facingRef.current = "up"; }
-        if (keys.has("s") || keys.has("arrowdown"))   { dy = 1; facingRef.current = "down"; }
-        if (keys.has("a") || keys.has("arrowleft"))   { dx = -1; facingRef.current = "left"; }
-        if (keys.has("d") || keys.has("arrowright"))  { dx = 1; facingRef.current = "right"; }
+        if (keys.has("w") || keys.has("arrowup")) { dy = -1; facingRef.current = "up"; }
+        if (keys.has("s") || keys.has("arrowdown")) { dy = 1; facingRef.current = "down"; }
+        if (keys.has("a") || keys.has("arrowleft")) { dx = -1; facingRef.current = "left"; }
+        if (keys.has("d") || keys.has("arrowright")) { dx = 1; facingRef.current = "right"; }
 
         // Normalize diagonal
         if (dx !== 0 && dy !== 0) { dx *= 0.707; dy *= 0.707; }
@@ -307,8 +312,8 @@ export default function UniMatchPage() {
 
       const p = posRef.current;
       // Smooth camera
-      const camX = Math.max(0, Math.min(p.x - VIEW_W/2, MAP_W - VIEW_W));
-      const camY = Math.max(0, Math.min(p.y - VIEW_H/2, MAP_H - VIEW_H));
+      const camX = Math.max(0, Math.min(p.x - VIEW_W / 2, MAP_W - VIEW_W));
+      const camY = Math.max(0, Math.min(p.y - VIEW_H / 2, MAP_H - VIEW_H));
 
       // Draw tiles
       const startX = Math.floor(camX), startY = Math.floor(camY);
@@ -325,29 +330,29 @@ export default function UniMatchPage() {
       // Draw NPCs
       NPCS.forEach(npc => {
         const sx = (npc.x - camX) * TILE, sy = (npc.y - camY) * TILE;
-        if (sx < -TILE*2 || sx > CANVAS_W+TILE || sy < -TILE*2 || sy > CANVAS_H+TILE) return;
+        if (sx < -TILE * 2 || sx > CANVAS_W + TILE || sy < -TILE * 2 || sy > CANVAS_H + TILE) return;
         drawChar(ctx, sx, sy, npc.skin, npc.hairColor, npc.outfit, npc.facing, 0);
-        ctx.fillStyle = "rgba(0,0,0,0.75)"; ctx.fillRect(sx-12, sy-12, TILE+24, 12);
+        ctx.fillStyle = "rgba(0,0,0,0.75)"; ctx.fillRect(sx - 12, sy - 12, TILE + 24, 12);
         ctx.font = "bold 8px monospace"; ctx.fillStyle = partyRef.current.includes(npc.id) ? "#4ade80" : "#fff";
-        ctx.textAlign = "center"; ctx.fillText(npc.name, sx+TILE/2, sy-3);
+        ctx.textAlign = "center"; ctx.fillText(npc.name, sx + TILE / 2, sy - 3);
         // Interaction hint
-        const ndx = npc.x+0.5-p.x, ndy = npc.y+0.5-p.y;
-        const dist = Math.sqrt(ndx*ndx+ndy*ndy);
+        const ndx = npc.x + 0.5 - p.x, ndy = npc.y + 0.5 - p.y;
+        const dist = Math.sqrt(ndx * ndx + ndy * ndy);
         if (dist < 1.8) {
-          const bob = Math.sin(time/300)*2;
+          const bob = Math.sin(time / 300) * 2;
           ctx.fillStyle = "#FFD700"; ctx.font = "bold 9px monospace";
-          ctx.fillText("[E]", sx+TILE/2, sy-16+bob);
+          ctx.fillText("[E]", sx + TILE / 2, sy - 16 + bob);
         }
       });
 
       // Draw player (FREE position, no grid)
-      const plx = (p.x - camX) * TILE - TILE/2;
-      const ply = (p.y - camY) * TILE - TILE/2;
+      const plx = (p.x - camX) * TILE - TILE / 2;
+      const ply = (p.y - camY) * TILE - TILE / 2;
       drawChar(ctx, plx, ply, avatarRef.current.skin, avatarRef.current.hairColor, avatarRef.current.outfit, facingRef.current, movingRef.current ? walkTRef.current : 0);
       // Arrow indicator
-      const arrowBob = Math.sin(time/250)*2;
+      const arrowBob = Math.sin(time / 250) * 2;
       ctx.fillStyle = "#22d3ee";
-      ctx.beginPath(); ctx.moveTo(plx+TILE/2, ply-5+arrowBob); ctx.lineTo(plx+TILE/2-5, ply-12+arrowBob); ctx.lineTo(plx+TILE/2+5, ply-12+arrowBob); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(plx + TILE / 2, ply - 5 + arrowBob); ctx.lineTo(plx + TILE / 2 - 5, ply - 12 + arrowBob); ctx.lineTo(plx + TILE / 2 + 5, ply - 12 + arrowBob); ctx.fill();
 
       animRef.current = requestAnimationFrame(loop);
     };
@@ -357,11 +362,11 @@ export default function UniMatchPage() {
   }, [phase]);
 
   // Mobile controls (also free movement)
-  const mobileDir = useRef<string|null>(null);
-  const mobileInterval = useRef<ReturnType<typeof setInterval>|null>(null);
+  const mobileDir = useRef<string | null>(null);
+  const mobileInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const startMobileMove = (dir: string) => {
-    const keys: Record<string,string[]> = { up:["w"], down:["s"], left:["a"], right:["d"] };
+    const keys: Record<string, string[]> = { up: ["w"], down: ["s"], left: ["a"], right: ["d"] };
     keys[dir]?.forEach(k => keysRef.current.add(k));
     mobileDir.current = dir;
   };
@@ -370,7 +375,275 @@ export default function UniMatchPage() {
     mobileDir.current = null;
   };
 
-  if (phase === "custom") return <AvatarCustomizer config={avatar} setConfig={setAvatar} onEnter={enterWorld} />;
+  const handleSwipe = (action: "like" | "pass") => {
+    setLastAction(action);
+    const currentNpc = NPCS[swipeIndex];
+    setTimeout(() => {
+      setLastAction(null);
+      if (action === "like" && currentNpc) {
+        if (!party.includes(currentNpc.id) && party.length < 5) {
+          setParty(prev => [...prev, currentNpc.id]);
+          if (currentNpc.matchRate >= 80) {
+            setMatchNpc(currentNpc);
+          }
+        }
+      }
+      setSwipeIndex(prev => prev + 1);
+    }, 300);
+  };
+
+  const resetSwiper = () => {
+    setSwipeIndex(0);
+    setParty([]);
+  };
+
+  if (phase === "custom") return <AvatarCustomizer config={avatar} setConfig={setAvatar} onEnter={enterSelection} />;
+
+  if (phase === "select") {
+    return (
+      <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-6 pixel-grid-bg animate-fade-in">
+        <div className="text-center mb-10">
+          <p className="font-pixel text-[8px] text-cyan-400 tracking-widest mb-2">CHOOSE YOUR PATH</p>
+          <h1 className="font-pixel text-xl text-white">SELECT PLAY MODE</h1>
+          <p className="font-pixel text-[7px] text-gray-500 mt-2">How do you want to find your team squad?</p>
+        </div>
+
+        <div className="flex flex-col md:flex-row gap-8 max-w-2xl w-full">
+          {/* Card 1: RPG 2D Game */}
+          <div className="flex-1 bg-gray-800 border-4 border-gray-700 hover:border-cyan-400 rounded-sm p-6 flex flex-col items-center justify-between text-center transition-all group hover:scale-[1.02]">
+            <div className="flex flex-col items-center">
+              <div className="w-16 h-16 bg-gray-700 border-4 border-gray-600 rounded-sm flex items-center justify-center text-3xl mb-4 group-hover:bg-cyan-950 transition-colors">
+                🎮
+              </div>
+              <h2 className="font-pixel text-sm text-white mb-2">RPG Game Mode</h2>
+              <p className="font-pixel text-[7px] text-gray-400 leading-relaxed">
+                Explore the campus 2D pixel world map freely, walk up to potential candidates, chat, inspect stats, and recruit them into your party!
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                setPhase("world");
+                setShowIntro(true);
+                setTimeout(() => setShowIntro(false), 3000);
+              }}
+              className="w-full mt-6 font-pixel text-[8px] py-3 pixel-btn bg-cyan-600 hover:bg-cyan-500 text-white border-cyan-400 rounded-sm"
+            >
+              Enter RPG World
+            </button>
+          </div>
+
+          {/* Card 2: Swipe Dating App */}
+          <div className="flex-1 bg-gray-800 border-4 border-gray-700 hover:border-pink-500 rounded-sm p-6 flex flex-col items-center justify-between text-center transition-all group hover:scale-[1.02]">
+            <div className="flex flex-col items-center">
+              <div className="w-16 h-16 bg-gray-700 border-4 border-gray-600 rounded-sm flex items-center justify-center text-3xl mb-4 group-hover:bg-pink-950 transition-colors">
+                🔥
+              </div>
+              <h2 className="font-pixel text-sm text-white mb-2">Swiper Mode</h2>
+              <p className="font-pixel text-[7px] text-gray-400 leading-relaxed">
+                A modern swipe layout. Go through candidate profile cards tinder-style, view their tech stacks, like or pass to build your ultimate squad instantly!
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                setPhase("swipe");
+                setSwipeIndex(0);
+              }}
+              className="w-full mt-6 font-pixel text-[8px] py-3 pixel-btn bg-pink-600 hover:bg-pink-500 text-white border-pink-400 rounded-sm"
+            >
+              Start Swiping
+            </button>
+          </div>
+        </div>
+
+        <button
+          onClick={() => setPhase("custom")}
+          className="font-pixel text-[7px] mt-8 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-400 border-2 border-gray-700 rounded-sm"
+        >
+          Edit Hero Avatar
+        </button>
+      </div>
+    );
+  }
+
+  if (phase === "swipe") {
+    const currentNpc = NPCS[swipeIndex];
+    const isCompleted = swipeIndex >= NPCS.length;
+
+    return (
+      <div className="space-y-4 animate-fade-in pixel-grid-bg min-h-screen pb-12">
+        {/* Header */}
+        <div className="bg-gray-900 pixel-border rounded-sm p-3 flex items-center justify-between flex-wrap gap-2">
+          <div>
+            <p className="font-pixel text-[8px] text-pink-500">🔥 UNIMATCH SWIPER</p>
+            <p className="font-pixel text-[7px] text-gray-500">Swipe right to recruit • Swipe left to pass</p>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-1">
+              <span className="font-pixel text-[8px] text-cyan-400">PARTY:</span>
+              {Array.from({ length: 5 }).map((_, i) => {
+                const memberId = party[i];
+                const member = NPCS.find(n => n.id === memberId);
+                return (
+                  <div 
+                    key={i} 
+                    className={`w-8 h-8 border-2 rounded-sm flex items-center justify-center relative ${
+                      member ? "border-green-500 bg-gray-800" : "border-gray-700 bg-gray-800"
+                    }`}
+                  >
+                    {member ? (
+                      <AvatarPreview 
+                        config={{ skin: member.skin, hair: 1, hairColor: member.hairColor, outfit: member.outfit, accessory: 0 }} 
+                        size={28} 
+                      />
+                    ) : (
+                      <span className="font-pixel text-[8px] text-gray-600">?</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <button 
+              onClick={() => setPhase("select")} 
+              className="font-pixel text-[7px] px-3 py-1.5 bg-gray-800 text-gray-400 border-2 border-gray-700 rounded-sm hover:border-gray-500"
+            >
+              CHANGE MODE
+            </button>
+          </div>
+        </div>
+
+        {/* Swipe Card Deck Container */}
+        <div className="flex flex-col items-center justify-center py-6 min-h-[450px]">
+          {isCompleted ? (
+            <div className="bg-gray-900 border-4 border-gray-700 rounded-sm p-8 max-w-sm w-full text-center space-y-6">
+              <span className="text-4xl">🏁</span>
+              <h2 className="font-pixel text-base text-white">DECK COMPLETED</h2>
+              <p className="font-pixel text-[8px] text-gray-400 leading-relaxed">
+                You have swiped through all available candidates.
+              </p>
+              <div className="flex gap-2">
+                <button 
+                  onClick={resetSwiper} 
+                  className="flex-1 font-pixel text-[8px] py-3 pixel-btn bg-pink-600 text-white border-pink-400 rounded-sm"
+                >
+                  Start Over
+                </button>
+                <button 
+                  onClick={() => setPhase("select")} 
+                  className="flex-1 font-pixel text-[8px] py-3 pixel-btn bg-gray-800 text-gray-300 border-gray-600 rounded-sm"
+                >
+                  Back
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="relative w-full max-w-sm h-[400px] flex justify-center">
+              {/* Tinder Card */}
+              <div 
+                className={`w-full bg-gray-900 border-4 rounded-sm p-6 flex flex-col justify-between transition-all duration-300 ${
+                  lastAction === "like" 
+                    ? "translate-x-full rotate-12 opacity-0 border-green-500" 
+                    : lastAction === "pass" 
+                    ? "-translate-x-full -rotate-12 opacity-0 border-red-500" 
+                    : "border-gray-700"
+                }`}
+              >
+                {/* Rarity & Ratios */}
+                <div className="flex justify-between items-center mb-4">
+                  <span className={`font-pixel text-[7px] px-2 py-1 bg-gray-800 border border-gray-600 rounded-sm ${
+                    currentNpc.rarity === "Legendary" ? "text-yellow-400" : currentNpc.rarity === "Epic" ? "text-purple-400" : "text-blue-400"
+                  }`}>
+                    {currentNpc.rarity.toUpperCase()}
+                  </span>
+                  <span className="font-pixel text-[7px] text-green-400 bg-green-950/40 px-2 py-1 border border-green-800 rounded-sm">
+                    {currentNpc.matchRate}% MATCH
+                  </span>
+                </div>
+
+                {/* Avatar Display */}
+                <div className="flex justify-center mb-4 py-4 bg-gray-800/40 border border-gray-700 rounded-sm">
+                  <AvatarPreview 
+                    config={{ skin: currentNpc.skin, hair: 1, hairColor: currentNpc.hairColor, outfit: currentNpc.outfit, accessory: 0 }} 
+                    size={112} 
+                  />
+                </div>
+
+                {/* Profile info */}
+                <div className="text-center space-y-1">
+                  <h3 className="font-pixel text-sm text-white">{currentNpc.name}</h3>
+                  <p className="font-pixel text-[8px] text-cyan-400">Lv.{currentNpc.level} {currentNpc.classLabel}</p>
+                  <p className="font-pixel text-[7px] text-gray-400 italic mt-2">&quot;{currentNpc.questLog}&quot;</p>
+                </div>
+
+                {/* Skills */}
+                <div className="mt-4 flex flex-wrap gap-1 justify-center">
+                  {currentNpc.skills.slice(0, 2).map(skill => (
+                    <span key={skill} className="font-pixel text-[6px] px-1.5 py-0.5 bg-gray-800 border border-gray-700 rounded-sm text-cyan-300">
+                      ✦ {skill}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Swipe Buttons */}
+          {!isCompleted && (
+            <div className="flex items-center gap-6 mt-6">
+              {/* Pass Button */}
+              <button 
+                onClick={() => handleSwipe("pass")} 
+                className="w-14 h-14 rounded-full border-4 border-red-500 bg-gray-900 text-red-500 hover:bg-red-500 hover:text-white flex items-center justify-center text-xl font-bold transition-all active:scale-95"
+                title="Pass"
+              >
+                ✕
+              </button>
+              {/* Super Like */}
+              <button 
+                onClick={() => handleSwipe("like")} 
+                className="w-10 h-10 rounded-full border-3 border-blue-500 bg-gray-900 text-blue-500 hover:bg-blue-500 hover:text-white flex items-center justify-center text-sm font-bold transition-all active:scale-95"
+                title="Super Like"
+              >
+                ★
+              </button>
+              {/* Like Button */}
+              <button 
+                onClick={() => handleSwipe("like")} 
+                className="w-14 h-14 rounded-full border-4 border-green-500 bg-gray-900 text-green-500 hover:bg-green-500 hover:text-white flex items-center justify-center text-xl font-bold transition-all active:scale-95"
+                title="Like"
+              >
+                ♥
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Match Popup Modal */}
+        {matchNpc && (
+          <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 animate-fade-in">
+            <div className="bg-gray-900 border-4 border-pink-500 rounded-sm p-8 max-w-sm w-full text-center space-y-6">
+              <span className="text-4xl animate-bounce">💖</span>
+              <h2 className="font-pixel text-base text-pink-400">IT&apos;S A MATCH!</h2>
+              <p className="font-pixel text-[8px] text-white">
+                You and {matchNpc.name} have joined forces. Build something amazing together!
+              </p>
+              <div className="flex justify-center py-4 bg-gray-800/40 border border-gray-700 rounded-sm">
+                <AvatarPreview 
+                  config={{ skin: matchNpc.skin, hair: 1, hairColor: matchNpc.hairColor, outfit: matchNpc.outfit, accessory: 0 }} 
+                  size={96} 
+                />
+              </div>
+              <button 
+                onClick={() => setMatchNpc(null)} 
+                className="w-full font-pixel text-[8px] py-3 pixel-btn bg-pink-600 text-white border-pink-400 rounded-sm"
+              >
+                CONTINUE SWIPING
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 animate-fade-in pixel-grid-bg min-h-screen">
@@ -383,20 +656,20 @@ export default function UniMatchPage() {
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-1">
             <span className="font-pixel text-[8px] text-cyan-400">PARTY:</span>
-            {Array.from({length:5}).map((_,i)=>(
-              <div key={i} className={`w-6 h-6 border-2 rounded-sm flex items-center justify-center text-[10px] font-pixel ${party[i]?"border-green-500 bg-gray-800 text-green-400":"border-gray-700 bg-gray-800"}`}>{party[i]?"✓":""}</div>
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className={`w-6 h-6 border-2 rounded-sm flex items-center justify-center text-[10px] font-pixel ${party[i] ? "border-green-500 bg-gray-800 text-green-400" : "border-gray-700 bg-gray-800"}`}>{party[i] ? "✓" : ""}</div>
             ))}
           </div>
-          <button onClick={()=>setPhase("custom")} className="font-pixel text-[7px] px-3 py-1.5 bg-gray-800 text-gray-400 border-2 border-gray-700 rounded-sm hover:border-gray-500">EDIT HERO</button>
+          <button onClick={() => setPhase("select")} className="font-pixel text-[7px] px-3 py-1.5 bg-gray-800 text-gray-400 border-2 border-gray-700 rounded-sm hover:border-gray-500">CHANGE MODE</button>
         </div>
       </div>
 
       {/* Game Canvas - WIDE DISPLAY */}
       <div className="relative flex justify-center">
-        <div className="relative" style={{ maxWidth:"100%" }}>
+        <div className="relative" style={{ maxWidth: "100%" }}>
           <canvas ref={canvasRef} width={CANVAS_W} height={CANVAS_H}
             className="pixel-border rounded-sm bg-gray-900 block"
-            style={{ imageRendering:"pixelated", width:"100%", maxWidth:CANVAS_W, height:"auto" }} />
+            style={{ imageRendering: "pixelated", width: "100%", maxWidth: CANVAS_W, height: "auto" }} />
 
           {showIntro && (
             <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-30 rounded-sm">
@@ -412,8 +685,8 @@ export default function UniMatchPage() {
 
           {talkingNpc && (
             <NpcDialog npc={talkingNpc} recruited={party.includes(talkingNpc.id)}
-              onRecruit={()=>{if(!party.includes(talkingNpc.id)&&party.length<5){const np=[...party,talkingNpc.id];setParty(np);partyRef.current=np;forceUpdate(n=>n+1);}}}
-              onClose={()=>setTalkingNpc(null)} />
+              onRecruit={() => { if (!party.includes(talkingNpc.id) && party.length < 5) { const np = [...party, talkingNpc.id]; setParty(np); partyRef.current = np; forceUpdate(n => n + 1); } }}
+              onClose={() => setTalkingNpc(null)} />
           )}
         </div>
       </div>
@@ -421,15 +694,15 @@ export default function UniMatchPage() {
       {/* Mobile D-Pad with hold-to-move */}
       <div className="flex justify-center gap-8 lg:hidden">
         <div className="grid grid-cols-3 gap-1 w-36">
-          <div/>
-          <button onPointerDown={()=>startMobileMove("up")} onPointerUp={stopMobileMove} onPointerLeave={stopMobileMove} className="font-pixel text-xs bg-gray-800 text-white border-3 border-gray-600 rounded-sm p-3 active:bg-gray-700 select-none">▲</button>
-          <div/>
-          <button onPointerDown={()=>startMobileMove("left")} onPointerUp={stopMobileMove} onPointerLeave={stopMobileMove} className="font-pixel text-xs bg-gray-800 text-white border-3 border-gray-600 rounded-sm p-3 active:bg-gray-700 select-none">◀</button>
+          <div />
+          <button onPointerDown={() => startMobileMove("up")} onPointerUp={stopMobileMove} onPointerLeave={stopMobileMove} className="font-pixel text-xs bg-gray-800 text-white border-3 border-gray-600 rounded-sm p-3 active:bg-gray-700 select-none">▲</button>
+          <div />
+          <button onPointerDown={() => startMobileMove("left")} onPointerUp={stopMobileMove} onPointerLeave={stopMobileMove} className="font-pixel text-xs bg-gray-800 text-white border-3 border-gray-600 rounded-sm p-3 active:bg-gray-700 select-none">◀</button>
           <button onClick={tryInteract} className="font-pixel text-[8px] bg-yellow-700 text-white border-3 border-yellow-500 rounded-sm p-3 active:bg-yellow-600 select-none">E</button>
-          <button onPointerDown={()=>startMobileMove("right")} onPointerUp={stopMobileMove} onPointerLeave={stopMobileMove} className="font-pixel text-xs bg-gray-800 text-white border-3 border-gray-600 rounded-sm p-3 active:bg-gray-700 select-none">▶</button>
-          <div/>
-          <button onPointerDown={()=>startMobileMove("down")} onPointerUp={stopMobileMove} onPointerLeave={stopMobileMove} className="font-pixel text-xs bg-gray-800 text-white border-3 border-gray-600 rounded-sm p-3 active:bg-gray-700 select-none">▼</button>
-          <div/>
+          <button onPointerDown={() => startMobileMove("right")} onPointerUp={stopMobileMove} onPointerLeave={stopMobileMove} className="font-pixel text-xs bg-gray-800 text-white border-3 border-gray-600 rounded-sm p-3 active:bg-gray-700 select-none">▶</button>
+          <div />
+          <button onPointerDown={() => startMobileMove("down")} onPointerUp={stopMobileMove} onPointerLeave={stopMobileMove} className="font-pixel text-xs bg-gray-800 text-white border-3 border-gray-600 rounded-sm p-3 active:bg-gray-700 select-none">▼</button>
+          <div />
         </div>
       </div>
 
